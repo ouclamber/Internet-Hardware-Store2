@@ -1,0 +1,72 @@
+.SignUp-Container {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.SignUp-Container .SignUp-SubContainer {
+    height: 70%;
+    width: 450px;
+    border: 0.5px solid lightgray;
+    border-radius: 10px;
+}
+
+.SignUp-Container .SignUp-SubContainer:hover {
+    box-shadow: 0 0 5px -2px black;
+}
+
+.SignUp-Container .SignUp-SubContainer .Header {
+    height: 15%;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    font-family: 'Roboto';
+    font-size: 25px;
+    font-weight: 500;
+    color: blue;
+}
+
+.SignUp-Container .SignUp-SubContainer .Body {
+    height: 70%;
+    width: 100%;
+}
+
+.SignUp-Container .SignUp-SubContainer .Body .form {
+    height: 100%;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.SignUp-Container .SignUp-SubContainer .Body .form .TextField {
+    width: 300px;
+    margin: 20px;
+}
+
+.SignUp-Container .SignUp-SubContainer .Body .form .Roles {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    width: 100%;
+}
+
+.SignUp-Container .SignUp-SubContainer .Body .form .Role .RolesValue {
+    width: 100%;
+}
+
+.SignUp-Container .SignUp-SubContainer .buttons {  
+    height: 15%;
+    width: 100%;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.SignUp-Container .SignUp-SubContainer .buttons .Btn {
+    text-transform: none;
+}

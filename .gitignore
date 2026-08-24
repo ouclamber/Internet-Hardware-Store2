@@ -1,0 +1,69 @@
+# Node modules
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build outputs
+dist/
+build/
+*.user
+*.suo
+*.sln.docstates
+
+# .NET
+bin/
+obj/
+*.log
+logs/
+*.cache
+*.tmp
+*.userprefs
+
+# Visual Studio / VS Code
+.vs/
+.vscode/
+*.swp
+*.swo
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+
+# IDE
+.idea/
+*.iml
+
+# OS
+Thumbs.db
+.DS_Store
+Desktop.ini
+
+# Backup files
+*.bak
+*.backup
+
+# Logs
+logs/
+*.log
+
+# Database
+*.db
+*.sqlite
+*.mdb
+*.ldf
+
+# Backend logs
+Backend/logs/
+
+# Frontend build
+client/build/
+client/dist/
+
+# React
+client/node_modules/
+client/.env
+client/.env.local
+client/.env.development
+client/.env.production
