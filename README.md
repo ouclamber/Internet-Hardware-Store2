@@ -10,12 +10,12 @@ Frontend - React 18 - Material-UI - React Router
 
 Функционал - Регистрация и авторизация (Admin/User) - Каталог товаров - Корзина покупок - Оформление заказа - Админ-панель - Отзывы и рейтинги - Поиск товаров - Одинарное шифрование данных
 
-Запуск
+Запуск:
   ```bash
-      Frontend
-        npm start
+  Frontend:
+    npm start
       
-      Backend
-        cd Backend
-        dotnet restore
-        dotnet run
+  Backend:
+    cd Backend
+    dotnet restore
+    dotnet run
