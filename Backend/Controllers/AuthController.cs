@@ -151,37 +151,66 @@ namespace Backend.Controllers
         [HttpPost("change-password")]
         public async Task<IActionResult> ChangePassword([FromBody] UpdatePasswordRequest request)
         {
-            Log.Information("Попытка смены пароля для пользователя: {UserId}", request.UserId);
+            Log.Information("🔄 === НАЧАЛО СМЕНЫ ПАРОЛЯ ===");
+            Log.Information($"📝 UserId: {request.UserId}");
+            Log.Information($"📝 OldPassword: '{request.OldPassword}'");
+            Log.Information($"📝 NewPassword: '{request.NewPassword}'");
 
             var user = await _context.Users.FindAsync(request.UserId);
             if (user == null)
             {
-                Log.Warning("Пользователь {UserId} не найден при смене пароля", request.UserId);
+                Log.Warning($"❌ Пользователь {request.UserId} не найден");
                 return NotFound(new { message = "Пользователь не найден" });
             }
 
-            if (string.IsNullOrWhiteSpace(request.OldPassword))
+            Log.Information($"👤 Пользователь найден: {user.UserName}");
+            Log.Information($"🔑 Хеш из БД ДО: '{user.PasswordHash}'");
+
+            // Проверка через BCrypt
+            bool isValid = false;
+            try
             {
-                Log.Warning("Старый пароль не передан для пользователя {UserId}", request.UserId);
-                return BadRequest(new { message = "Старый пароль обязателен" });
+                isValid = _encryption.VerifyPassword(request.OldPassword, user.PasswordHash);
+                Log.Information($"✅ Результат VerifyPassword: {isValid}");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"❌ Ошибка при проверке пароля: {ex.Message}");
+                return StatusCode(500, new { message = "Ошибка при проверке пароля" });
             }
 
-            if (string.IsNullOrWhiteSpace(request.NewPassword))
+            if (!isValid)
             {
-                Log.Warning("Новый пароль не передан для пользователя {UserId}", request.UserId);
-                return BadRequest(new { message = "Новый пароль обязателен" });
-            }
-
-            if (!_encryption.VerifyPassword(request.OldPassword, user.PasswordHash))
-            {
-                Log.Warning("Неверный старый пароль для пользователя {UserId}", request.UserId);
+                Log.Warning($"❌ Неверный старый пароль для пользователя {request.UserId}");
                 return BadRequest(new { message = "Неверный старый пароль" });
             }
 
-            user.PasswordHash = _encryption.HashPassword(request.NewPassword);
-            await _context.SaveChangesAsync();
+            // Хешируем новый пароль
+            string newHash = _encryption.HashPassword(request.NewPassword);
+            Log.Information($"✅ Новый хеш: '{newHash}'");
 
-            Log.Information("Пароль успешно изменен для пользователя {UserId} ({UserName})", user.Id, user.UserName);
+            // ✅ Явно указываем, что сущность изменена
+            user.PasswordHash = newHash;
+            _context.Entry(user).State = EntityState.Modified;
+            
+            var saveResult = await _context.SaveChangesAsync();
+            Log.Information($"📊 SaveChangesAsync вернул: {saveResult} записей изменено");
+
+            // ✅ Перезагружаем из БД, чтобы проверить
+            await _context.Entry(user).ReloadAsync();
+            Log.Information($"🔑 Хеш в БД ПОСЛЕ: '{user.PasswordHash}'");
+
+            if (user.PasswordHash != newHash)
+            {
+                Log.Warning($"⚠️ Хеш НЕ СОХРАНИЛСЯ! Пробуем ещё раз...");
+                user.PasswordHash = newHash;
+                _context.Entry(user).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
+                await _context.Entry(user).ReloadAsync();
+                Log.Information($"🔑 Хеш в БД ПОСЛЕ ПОВТОРНОЙ ПОПЫТКИ: '{user.PasswordHash}'");
+            }
+
+            Log.Information($"✅ Пароль успешно изменен для пользователя {request.UserId} ({user.UserName})");
             return Ok(new { message = "Пароль успешно изменен" });
         }
 

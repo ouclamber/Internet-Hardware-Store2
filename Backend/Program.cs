@@ -419,6 +419,7 @@ app.MapGet("/api/categories/with-products", async (ApplicationDb context, HttpCo
             c.Id,
             c.Name,
             c.Description,
+            c.ImageUrl,
             ProductCount = context.Products.Count(p => p.CategoryId == c.Id && p.IsActive)
         })
         .OrderBy(c => c.Id)

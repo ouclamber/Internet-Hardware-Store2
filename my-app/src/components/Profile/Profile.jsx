@@ -313,21 +313,31 @@ const Profile = () => {
     };
 
     const handlePasswordChange = async () => {
+        console.log('🔄 === НАЧАЛО СМЕНЫ ПАРОЛЯ ===');
+        
         const oldPassword = prompt('Введите текущий пароль:');
         const newPassword = prompt('Введите новый пароль:');
         const confirmPassword = prompt('Подтвердите новый пароль:');
 
+        console.log('📝 Введенные данные:');
+        console.log('  oldPassword:', oldPassword ? '****' : 'пусто');
+        console.log('  newPassword:', newPassword ? '****' : 'пусто');
+        console.log('  confirmPassword:', confirmPassword ? '****' : 'пусто');
+
         if (!oldPassword || !newPassword || !confirmPassword) {
+            console.warn('❌ Не все поля заполнены');
             setError('Все поля должны быть заполнены');
             return;
         }
 
         if (newPassword !== confirmPassword) {
+            console.warn('❌ Пароли не совпадают');
             setError('Пароли не совпадают');
             return;
         }
 
         if (newPassword.length < 6) {
+            console.warn(`❌ Пароль слишком короткий: ${newPassword.length} символов`);
             setError('Пароль должен содержать минимум 6 символов');
             return;
         }
@@ -336,43 +346,73 @@ const Profile = () => {
             const token = localStorage.getItem('token');
             const userId = localStorage.getItem('userId');
             
+            console.log('👤 Данные пользователя:');
+            console.log('  userId:', userId);
+            console.log('  token:', token ? 'Есть' : 'НЕТ');
+
+            if (!token) {
+                console.error('❌ НЕТ ТОКЕНА!');
+                setError('Сессия истекла. Пожалуйста, войдите заново.');
+                localStorage.clear();
+                setTimeout(() => navigate('/SignIn'), 2000);
+                return;
+            }
+
             const data = {
+                userId: parseInt(userId),
                 oldPassword: oldPassword,
                 newPassword: newPassword
             };
             
-            console.log('Отправляем данные для смены пароля:', data);
-            console.log('URL:', `http://localhost:5214/api/Users/${userId}/password`);
-            console.log('Headers:', { Authorization: `Bearer ${token}` });
+            // ✅ ИСПРАВЛЕННЫЙ URL — используем AuthController
+            const url = 'http://localhost:5214/api/Auth/change-password';
             
-            const response = await axios.patch(
-                `http://localhost:5214/api/Users/${userId}/password`,
-                data,
-                {
-                    headers: { 
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                }
-            );
+            console.log('📤 Отправка данных:');
+            console.log('  URL:', url);
+            console.log('  Method: POST');
+            console.log('  Body:', { ...data, oldPassword: '****', newPassword: '****' });
             
-            console.log('Ответ сервера:', response.data);
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify(data)
+            });
             
-            setSuccess('Пароль успешно изменен. Вы будете перенаправлены на страницу входа.');
+            console.log('📊 Статус ответа:', response.status);
+            console.log('📊 Статус текст:', response.statusText);
+            
+            const result = await response.json();
+            console.log('📊 Ответ сервера:', result);
+            
+            if (response.ok) {
+                console.log('✅ Пароль успешно изменен!');
+                setSuccess('Пароль успешно изменен. Вы будете перенаправлены на страницу входа.');
 
-            localStorage.removeItem('token');
-            localStorage.removeItem('userId');
-            localStorage.removeItem('userName');
-            localStorage.removeItem('userRole');
+                console.log('🗑️ Очистка localStorage...');
+                localStorage.removeItem('token');
+                localStorage.removeItem('userId');
+                localStorage.removeItem('userName');
+                localStorage.removeItem('userRole');
+                console.log('✅ localStorage очищен');
 
-            setTimeout(() => {
-                navigate('/SignIn');
-            }, 2000);
-            
+                console.log('🔄 Перенаправление на страницу входа через 2 секунды...');
+                setTimeout(() => {
+                    console.log('🚀 Перенаправление на /SignIn');
+                    navigate('/SignIn');
+                }, 2000);
+            } else {
+                console.error('❌ Ошибка сервера:', result);
+                const errorMessage = result.message || 'Ошибка при смене пароля';
+                setError(errorMessage);
+            }
         } catch (error) {
-            console.error('Ошибка при смене пароля:', error);
-            console.error('Статус:', error.response?.status);
-            console.error('Данные ошибки:', error.response?.data);
+            console.error('❌ ИСКЛЮЧЕНИЕ:', error);
+            console.error('  Сообщение:', error.message);
+            console.error('  Статус:', error.response?.status);
+            console.error('  Данные ошибки:', error.response?.data);
             
             if (error.response?.status === 400) {
                 setError(error.response.data?.message || 'Неверный текущий пароль');
@@ -380,10 +420,14 @@ const Profile = () => {
                 setError('Сессия истекла. Пожалуйста, войдите заново.');
                 localStorage.clear();
                 setTimeout(() => navigate('/SignIn'), 2000);
+            } else if (error.response?.status === 404) {
+                setError('Пользователь не найден');
             } else {
                 setError('Ошибка при смене пароля. Попробуйте позже.');
             }
         }
+        
+        console.log('🔄 === КОНЕЦ СМЕНЫ ПАРОЛЯ ===');
     };
 
     const formatDate = (dateString) => {

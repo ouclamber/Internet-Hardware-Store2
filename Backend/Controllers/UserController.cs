@@ -311,67 +311,67 @@ namespace Backend.Controllers
             return NoContent();
         }
 
-        [HttpPatch("{id}/password")]
-        public async Task<ActionResult<object>> UpdatePassword(int id, [FromBody] UpdatePasswordRequest request)
-        {
-            try
-            {
-                Console.WriteLine($"\nСМЕНА ПАРОЛЯ");
-                Console.WriteLine($"ID пользователя: {id}");
+        // [HttpPatch("{id}/password")]
+        // public async Task<ActionResult<object>> UpdatePassword(int id, [FromBody] UpdatePasswordRequest request)
+        // {
+        //     try
+        //     {
+        //         Console.WriteLine($"\nСМЕНА ПАРОЛЯ");
+        //         Console.WriteLine($"ID пользователя: {id}");
 
-                var user = await _context.Users
-                    .FirstOrDefaultAsync(u => u.Id == id);
+        //         var user = await _context.Users
+        //             .FirstOrDefaultAsync(u => u.Id == id);
                     
-                if (user == null)
-                {
-                    return NotFound(new { message = $"Пользователь с ID {id} не найден" });
-                }
+        //         if (user == null)
+        //         {
+        //             return NotFound(new { message = $"Пользователь с ID {id} не найден" });
+        //         }
 
-                Console.WriteLine($"Пользователь найден: {user.UserName}");
-                Console.WriteLine($"Хеш пароля в БД ДО: {user.PasswordHash}");
+        //         Console.WriteLine($"Пользователь найден: {user.UserName}");
+        //         Console.WriteLine($"Хеш пароля в БД ДО: {user.PasswordHash}");
 
-                if (string.IsNullOrEmpty(request.OldPassword))
-                {
-                    return BadRequest(new { message = "Старый пароль обязателен" });
-                }
+        //         if (string.IsNullOrEmpty(request.OldPassword))
+        //         {
+        //             return BadRequest(new { message = "Старый пароль обязателен" });
+        //         }
 
-                if (!VerifyPassword(request.OldPassword, user.PasswordHash))
-                {
-                    return BadRequest(new { message = "Неверный старый пароль" });
-                }
+        //         if (!VerifyPassword(request.OldPassword, user.PasswordHash))
+        //         {
+        //             return BadRequest(new { message = "Неверный старый пароль" });
+        //         }
 
-                Console.WriteLine("Старый пароль ВЕРНЫЙ");
+        //         Console.WriteLine("Старый пароль ВЕРНЫЙ");
 
-                var newPasswordHash = HashPassword(request.NewPassword);
-                Console.WriteLine($"Новый хеш пароля: {newPasswordHash}");
+        //         var newPasswordHash = HashPassword(request.NewPassword);
+        //         Console.WriteLine($"Новый хеш пароля: {newPasswordHash}");
 
-                string sql = "UPDATE \"Users\" SET \"PasswordHash\" = @p0 WHERE \"Id\" = @p1";
+        //         string sql = "UPDATE \"Users\" SET \"PasswordHash\" = @p0 WHERE \"Id\" = @p1";
                 
-                var rowsAffected = await _context.Database.ExecuteSqlRawAsync(sql, newPasswordHash, id);
-                Console.WriteLine($"Затронуто строк SQL запросом: {rowsAffected}");
+        //         var rowsAffected = await _context.Database.ExecuteSqlRawAsync(sql, newPasswordHash, id);
+        //         Console.WriteLine($"Затронуто строк SQL запросом: {rowsAffected}");
 
-                var reloadedUser = await _context.Users
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(u => u.Id == id);
-                Console.WriteLine($"Хеш пароля в БД ПОСЛЕ обновления: {reloadedUser?.PasswordHash}");
+        //         var reloadedUser = await _context.Users
+        //             .AsNoTracking()
+        //             .FirstOrDefaultAsync(u => u.Id == id);
+        //         Console.WriteLine($"Хеш пароля в БД ПОСЛЕ обновления: {reloadedUser?.PasswordHash}");
                 
-                if (rowsAffected > 0)
-                {
-                    Console.WriteLine("Пароль успешно изменен!");
-                    return Ok(new { message = "Пароль успешно изменен" });
-                }
-                else
-                {
-                    return StatusCode(500, new { message = "Не удалось обновить пароль" });
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"ОШИБКА: {ex.Message}");
-                Console.WriteLine($"Stack trace: {ex.StackTrace}");
-                return StatusCode(500, new { message = $"Ошибка: {ex.Message}" });
-            }
-        }
+        //         if (rowsAffected > 0)
+        //         {
+        //             Console.WriteLine("Пароль успешно изменен!");
+        //             return Ok(new { message = "Пароль успешно изменен" });
+        //         }
+        //         else
+        //         {
+        //             return StatusCode(500, new { message = "Не удалось обновить пароль" });
+        //         }
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         Console.WriteLine($"ОШИБКА: {ex.Message}");
+        //         Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        //         return StatusCode(500, new { message = $"Ошибка: {ex.Message}" });
+        //     }
+        // }
 
         [HttpDelete("{id}")]
         // [Authorize(Roles = "Admin")] // ЗАКОММЕНТИРОВАТЬ

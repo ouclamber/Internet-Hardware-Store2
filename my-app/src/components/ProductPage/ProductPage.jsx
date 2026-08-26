@@ -101,49 +101,93 @@ class ProductPage extends Component {
     };
 
     loadReviews = async (productId) => {
-        console.log('Загрузка отзывов для товара ID:', productId);
+        console.log('[loadReviews] НАЧАЛО загрузки отзывов для товара ID:', productId);
+        console.log('[loadReviews] Текущее состояние reviews до загрузки:', this.state.reviews);
+        
         this.setState({ reviewsLoading: true });
         try {
-            const response = await fetch(`http://localhost:5214/api/Reviews/product/${productId}`);
+            const timestamp = Date.now();
+            const url = `http://localhost:5214/api/Reviews/product/${productId}?_=${timestamp}`;
+            console.log('[loadReviews] URL запроса:', url);
+            
+            const response = await fetch(url, {
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache'
+                }
+            });
+            
+            console.log('[loadReviews] Статус ответа:', response.status);
             
             if (response.ok) {
                 const data = await response.json();
-                console.log('Полученные данные отзывов:', data);
+                console.log('[loadReviews] Получены ДАННЫЕ ОТВЕТА (полные):', JSON.stringify(data, null, 2));
+                console.log('[loadReviews] data.reviews:', data.reviews);
+                console.log('[loadReviews] data.Reviews:', data.Reviews);
+                console.log('[loadReviews] data.items:', data.items);
+                console.log('[loadReviews] data.totalReviews:', data.totalReviews);
+                console.log('[loadReviews] data.averageRating:', data.averageRating);
                 
-                const reviewsData = data.reviews || data.Reviews || data.items || [];
-                console.log('reviewsData:', reviewsData);
-                console.log('reviewsData длина:', reviewsData.length);
+                let reviewsArray = data.reviews || data.Reviews || data.items || [];
+                console.log('[loadReviews] reviewsArray (сырые):', reviewsArray);
+                console.log('[loadReviews] reviewsArray длина:', reviewsArray.length);
+                console.log('[loadReviews] reviewsArray тип:', typeof reviewsArray);
+                console.log('[loadReviews] Это массив?', Array.isArray(reviewsArray));
                 
-                let reviewsArray = [];
-                if (Array.isArray(reviewsData)) {
-                    reviewsArray = reviewsData;
-                } else if (reviewsData && typeof reviewsData === 'object') {
-                    reviewsArray = Object.values(reviewsData);
+                if (!Array.isArray(reviewsArray)) {
+                    console.warn('[loadReviews] reviewsArray НЕ МАССИВ! Преобразуем...');
+                    if (reviewsArray && typeof reviewsArray === 'object') {
+                        reviewsArray = Object.values(reviewsArray);
+                        console.log('[loadReviews] После Object.values:', reviewsArray);
+                    } else {
+                        reviewsArray = [];
+                        console.log('[loadReviews] Установлен пустой массив');
+                    }
                 }
                 
-                const normalizedReviews = reviewsArray.map(review => ({
-                    id: review.Id || review.id,
-                    comment: review.Comment || review.comment,
-                    rating: review.Rating || review.rating,
-                    userName: review.UserName || review.userName || 'Аноним',
-                    userId: review.UserId || review.userId,
-                    createdAt: review.CreatedAt || review.createdAt,
-                    isApproved: review.IsApproved || review.isApproved
-                }));
+                const normalizedReviews = reviewsArray.map((review, index) => {
+                    console.log(`[loadReviews] Обработка отзыва ${index}:`, review);
+                    const normalized = {
+                        id: review.Id || review.id,
+                        comment: review.Comment || review.comment,
+                        rating: review.Rating || review.rating,
+                        userName: review.UserName || review.userName || 'Аноним',
+                        userId: review.UserId || review.userId,
+                        createdAt: review.CreatedAt || review.createdAt,
+                        isApproved: review.IsApproved || review.isApproved
+                    };
+                    console.log(`[loadReviews] Нормализованный отзыв ${index}:`, normalized);
+                    return normalized;
+                });
                 
-                console.log('Нормализованные отзывы:', normalizedReviews);
+                console.log('[loadReviews] ИТОГОВЫЙ МАССИВ normalizedReviews:', normalizedReviews);
+                console.log('[loadReviews] Количество нормализованных отзывов:', normalizedReviews.length);
+
+                const currentReviews = this.state.reviews;
+                const currentLength = currentReviews.length;
+                const newLength = normalizedReviews.length;
+                console.log(`[loadReviews] Было отзывов: ${currentLength}, стало: ${newLength}`);
+                
+                if (currentLength !== newLength) {
+                    console.log('[loadReviews] Количество отзывов ИЗМЕНИЛОСЬ! Обновляем состояние.');
+                }
                 
                 this.setState({
                     reviews: normalizedReviews,
                     averageRating: data.averageRating || data.AverageRating || 0,
                     totalReviews: data.totalReviews || data.TotalReviews || 0,
                     reviewsLoading: false
+                }, () => {
+                    console.log('[loadReviews] Состояние обновлено. Текущие reviews:', this.state.reviews);
+                    console.log('[loadReviews] Количество reviews в state:', this.state.reviews.length);
                 });
             } else {
+                console.warn('[loadReviews] Ответ НЕ OK, статус:', response.status);
                 this.setState({ reviewsLoading: false });
             }
         } catch (error) {
-            console.error('Ошибка загрузки отзывов:', error);
+            console.error('[loadReviews] ОШИБКА загрузки отзывов:', error);
+            console.error('[loadReviews] Детали ошибки:', error.message);
             this.setState({ reviewsLoading: false });
         }
     };
@@ -176,77 +220,230 @@ class ProductPage extends Component {
     };
 
     startEditReview = (review) => {
+        console.log('[startEditReview] Начало редактирования отзыва:', review);
+        console.log('[startEditReview] review.id:', review.id);
+        console.log('[startEditReview] review.comment:', review.comment);
+        console.log('[startEditReview] review.rating:', review.rating);
+        
         this.setState({
             editingReview: review,
             editComment: review.comment,
             editRating: review.rating
+        }, () => {
+            console.log('[startEditReview] Состояние обновлено. editingReview:', this.state.editingReview);
+            console.log('[startEditReview] editComment:', this.state.editComment);
+            console.log('[startEditReview] editRating:', this.state.editRating);
         });
     };
 
     cancelEditReview = () => {
+        console.log('[cancelEditReview] Отмена редактирования');
         this.setState({
             editingReview: null,
             editComment: '',
             editRating: 5
+        }, () => {
+            console.log('[cancelEditReview] Состояние сброшено');
         });
     };
 
     handleEditRatingChange = (rating) => {
+        console.log('[handleEditRatingChange] Изменение рейтинга на:', rating);
         this.setState({ editRating: rating });
     };
 
     handleEditCommentChange = (e) => {
+        console.log('[handleEditCommentChange] Изменение комментария:', e.target.value);
         this.setState({ editComment: e.target.value });
     };
 
     updateReview = async () => {
+        console.log('[updateReview] НАЧАЛО ОБНОВЛЕНИЯ ОТЗЫВА');
+        console.log('[updateReview] Текущее состояние:');
+        console.log('  editingReview:', this.state.editingReview);
+        console.log('  editComment:', this.state.editComment);
+        console.log('  editRating:', this.state.editRating);
+        
         const { editingReview, editComment, editRating } = this.state;
         const token = localStorage.getItem('token');
+        const userId = localStorage.getItem('userId');
+        
+        console.log('[updateReview] editingReview.id:', editingReview?.id);
+        console.log('[updateReview] userId из localStorage:', userId);
+        console.log('[updateReview] token есть?', token ? 'ДА' : 'НЕТ');
+        
+        if (!editingReview) {
+            console.error('[updateReview] НЕТ editingReview!');
+            this.showErrorMessage('Ошибка: нет отзыва для редактирования');
+            return;
+        }
 
         if (!editComment.trim()) {
+            console.warn('[updateReview] Пустой комментарий');
             this.showErrorMessage('Пожалуйста, введите текст отзыва');
             return;
         }
 
         if (editRating < 1 || editRating > 5) {
+            console.warn('[updateReview] Неверная оценка:', editRating);
             this.showErrorMessage('Оценка должна быть от 1 до 5');
+            return;
+        }
+
+        if (!token) {
+            console.error('[updateReview] НЕТ ТОКЕНА!');
+            this.showErrorMessage('Пожалуйста, войдите в систему');
             return;
         }
 
         this.setState({ editSubmitting: true });
 
         try {
-            const response = await fetch(`http://localhost:5214/api/Reviews/${editingReview.id}`, {
+            const requestBody = {
+                comment: editComment,
+                rating: editRating,
+                isApproved: true
+            };
+            
+            const url = `http://localhost:5214/api/Reviews/${editingReview.id}`;
+            console.log('[updateReview] URL:', url);
+            console.log('[updateReview] Method: PUT');
+            console.log('[updateReview] Body:', JSON.stringify(requestBody, null, 2));
+            console.log('[updateReview] Headers:', {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.substring(0, 20)}...`
+            });
+
+            const response = await fetch(url, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({
-                    comment: editComment,
-                    rating: editRating,
-                    isApproved: true
-                })
+                body: JSON.stringify(requestBody)
             });
 
+            console.log('[updateReview] Статус ответа:', response.status);
+            console.log('[updateReview] Статус текст:', response.statusText);
+            
+            const responseText = await response.text();
+            console.log('[updateReview] Текст ответа:', responseText);
+            
+            let responseData = null;
+            try {
+                if (responseText && responseText.trim()) {
+                    responseData = JSON.parse(responseText);
+                    console.log('[updateReview] Парсенный JSON:', responseData);
+                }
+            } catch (parseError) {
+                console.warn('[updateReview] Не удалось распарсить JSON:', parseError);
+            }
+
             if (response.ok) {
+                console.log('[updateReview] ОТЗЫВ УСПЕШНО ОБНОВЛЕН!');
+                console.log('[updateReview] Ответ сервера:', responseData);
+                
                 this.showSuccessMessage('Отзыв успешно обновлен!');
                 this.cancelEditReview();
-                await this.loadReviews(this.state.product.Id);
+                
+                console.log('[updateReview] Перезагрузка отзывов...');
+
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                const productId = this.state.product?.Id;
+                console.log('[updateReview] productId для перезагрузки:', productId);
+                
+                if (productId) {
+                    const timestamp = Date.now();
+                    const reviewsUrl = `http://localhost:5214/api/Reviews/product/${productId}?_=${timestamp}`;
+                    console.log('[updateReview] Запрос свежих отзывов:', reviewsUrl);
+                    
+                    const reviewsResponse = await fetch(reviewsUrl, {
+                        headers: {
+                            'Cache-Control': 'no-cache, no-store, must-revalidate',
+                            'Pragma': 'no-cache'
+                        }
+                    });
+                    
+                    console.log('[updateReview] Статус ответа отзывов:', reviewsResponse.status);
+                    
+                    if (reviewsResponse.ok) {
+                        const data = await reviewsResponse.json();
+                        console.log('[updateReview] СВЕЖИЕ ДАННЫЕ ОТЗЫВОВ:', JSON.stringify(data, null, 2));
+                        
+                        let reviewsArray = data.reviews || data.Reviews || data.items || [];
+                        console.log('[updateReview] reviewsArray (свежий):', reviewsArray);
+                        
+                        if (!Array.isArray(reviewsArray)) {
+                            console.warn('[updateReview] reviewsArray НЕ МАССИВ!');
+                            if (reviewsArray && typeof reviewsArray === 'object') {
+                                reviewsArray = Object.values(reviewsArray);
+                            } else {
+                                reviewsArray = [];
+                            }
+                        }
+                        
+                        const normalizedReviews = reviewsArray.map(review => ({
+                            id: review.Id || review.id,
+                            comment: review.Comment || review.comment,
+                            rating: review.Rating || review.rating,
+                            userName: review.UserName || review.userName || 'Аноним',
+                            userId: review.UserId || review.userId,
+                            createdAt: review.CreatedAt || review.createdAt,
+                            isApproved: review.IsApproved || review.isApproved
+                        }));
+                        
+                        console.log('[updateReview] НОРМАЛИЗОВАННЫЕ СВЕЖИЕ ОТЗЫВЫ:', normalizedReviews);
+                        console.log('[updateReview] Количество свежих отзывов:', normalizedReviews.length);
+                        
+                        this.setState({
+                            reviews: normalizedReviews,
+                            averageRating: data.averageRating || data.AverageRating || 0,
+                            totalReviews: data.totalReviews || data.TotalReviews || 0,
+                            reviewsLoading: false
+                        }, () => {
+                            console.log('[updateReview] СОСТОЯНИЕ ОБНОВЛЕНО!');
+                            console.log('[updateReview] Текущие reviews в state:', this.state.reviews);
+                            console.log('[updateReview] Количество reviews в state:', this.state.reviews.length);
+
+                            this.forceUpdate();
+                            console.log('[updateReview] forceUpdate() вызван');
+                        });
+                    } else {
+                        console.error('[updateReview] Ошибка загрузки свежих отзывов, статус:', reviewsResponse.status);
+                    }
+                }
+                
                 localStorage.setItem('needRefreshProfile', 'true');
+                console.log('[updateReview] Обновление завершено');
             } else {
-                const error = await response.json();
-                this.showErrorMessage(error.message || 'Ошибка при обновлении отзыва');
+                console.error('[updateReview] ОШИБКА СЕРВЕРА:', response.status);
+                console.error('[updateReview] Текст ошибки:', responseText);
+                
+                let errorMessage = 'Ошибка при обновлении отзыва';
+                if (responseData && responseData.message) {
+                    errorMessage = responseData.message;
+                } else if (responseText) {
+                    errorMessage = responseText;
+                }
+                this.showErrorMessage(errorMessage);
             }
         } catch (error) {
-            console.error('Ошибка:', error);
-            this.showErrorMessage('Ошибка при обновлении отзыв');
+            console.error('[updateReview] ИСКЛЮЧЕНИЕ:', error);
+            console.error('[updateReview] Тип ошибки:', error.name);
+            console.error('[updateReview] Сообщение:', error.message);
+            if (error.stack) {
+                console.error('[updateReview] Стек:', error.stack);
+            }
+            this.showErrorMessage('Ошибка при обновлении отзыва: ' + error.message);
         } finally {
             this.setState({ editSubmitting: false });
+            console.log('[updateReview] КОНЕЦ ОБНОВЛЕНИЯ ОТЗЫВА');
         }
     };
 
     deleteReview = async (reviewId) => {
+        console.log('[deleteReview] Удаление отзыва:', reviewId);
         const token = localStorage.getItem('token');
         const userId = localStorage.getItem('userId');
 
@@ -699,6 +896,10 @@ class ProductPage extends Component {
 
         console.log('Рендер ProductPage, selectedImage:', selectedImage);
         console.log('product?.Images:', product?.Images);
+        console.log('reviews в render:', reviews);
+        console.log('Количество отзывов в render:', reviews.length);
+        console.log('editingReview в render:', editingReview);
+        console.log('editSubmitting:', editSubmitting);
 
         if (loading) {
             return (
@@ -890,8 +1091,7 @@ class ProductPage extends Component {
                                             {product.Values.map((value) => (
                                                 <div key={value.Id} className="spec-row">
                                                     <span className="spec-name">
-                                                        {value.Attribute?.Name || 'Характеристика'}:
-                                                    </span>
+                                                        {value.Attribute?.Name || 'Характеристика'}:</span>
                                                     <span className="spec-value">
                                                         {value.Value} {value.Attribute?.Unit || ''}
                                                     </span>
@@ -970,7 +1170,7 @@ class ProductPage extends Component {
                             <h2 className="reviews-title">
                                 Отзывы 
                                 {totalReviews > 0 && (
-                                    <span className="average-rating">⭐ {averageRating} ({totalReviews} отзывов)</span>
+                                    <span className="average-rating">{averageRating} ({totalReviews} отзывов)</span>
                                 )}
                             </h2>
 
@@ -1014,6 +1214,9 @@ class ProductPage extends Component {
                                         const canEditDelete = currentUserId === review.userId?.toString() || userRole === 'Admin';
                                         
                                         if (editingReview && editingReview.id === review.id) {
+                                            console.log('Рендерим режим редактирования для отзыва:', review.id);
+                                            console.log('editComment:', editComment);
+                                            console.log('editRating:', editRating);
                                             return (
                                                 <div key={review.id} className="review-item editing">
                                                     <div className="review-header">
@@ -1039,7 +1242,10 @@ class ProductPage extends Component {
                                                     <div className="edit-review-actions">
                                                         <button 
                                                             className="save-edit-btn"
-                                                            onClick={this.updateReview}
+                                                            onClick={() => {
+                                                                console.log('КНОПКА СОХРАНИТЬ НАЖАТА!');
+                                                                this.updateReview();
+                                                            }}
                                                             disabled={editSubmitting}
                                                         >
                                                             {editSubmitting ? 'Сохранение...' : 'Сохранить'}
@@ -1071,7 +1277,10 @@ class ProductPage extends Component {
                                                         <div className="review-actions">
                                                             <button 
                                                                 className="edit-review-btn"
-                                                                onClick={() => this.startEditReview(review)}
+                                                                onClick={() => {
+                                                                    console.log('КНОПКА РЕДАКТИРОВАТЬ НАЖАТА!');
+                                                                    this.startEditReview(review);
+                                                                }}
                                                                 title="Редактировать отзыв"
                                                             >
                                                                 Редактировать 

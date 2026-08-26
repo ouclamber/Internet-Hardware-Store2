@@ -29,6 +29,11 @@ namespace Backend.Controllers
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
+
+            Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+            Response.Headers["Pragma"] = "no-cache";
+            Response.Headers["Expires"] = "0";
+
             Log.Information("Запрос отзывов для товара {ProductId}, страница {Page}, размер {PageSize}", 
                 productId, page, pageSize);
 
@@ -250,7 +255,7 @@ namespace Backend.Controllers
             if (!ModelState.IsValid)
             {
                 Log.Warning("Невалидные данные при обновлении отзыва {ReviewId}", id);
-                return BadRequest(ModelState);
+                return BadRequest(new { message = "Неверные данные", errors = ModelState });
             }
 
             var review = await _context.Reviews.FindAsync(id);
@@ -271,6 +276,8 @@ namespace Backend.Controllers
             var oldRating = review.Rating;
             var oldComment = review.Comment;
 
+            Log.Information($"[БД] ДО обновления: Comment='{review.Comment}', Rating={review.Rating}");
+
             review.Comment = updateDto.Comment;
             review.Rating = updateDto.Rating;
             
@@ -284,12 +291,31 @@ namespace Backend.Controllers
 
             try
             {
-                await _context.SaveChangesAsync();
-                Log.Information("Отзыв {ReviewId} обновлен: рейтинг {OldRating}->{NewRating}, комментарий изменен", 
-                    id, oldRating, updateDto.Rating);
+                _context.Entry(review).State = EntityState.Modified;
+                
+                var saveResult = await _context.SaveChangesAsync();
+                Log.Information($"[БД] SaveChangesAsync вернул: {saveResult} записей изменено");
+
+                await _context.Entry(review).ReloadAsync();
+                
+                Log.Information($"[БД] ПОСЛЕ обновления (из БД): Comment='{review.Comment}', Rating={review.Rating}");
+                
+                if (review.Comment != updateDto.Comment)
+                {
+                    Log.Warning($"[БД] Комментарий НЕ СОХРАНИЛСЯ! В БД: '{review.Comment}', Ожидалось: '{updateDto.Comment}'");
+
+                    review.Comment = updateDto.Comment;
+                    review.Rating = updateDto.Rating;
+                    _context.Entry(review).State = EntityState.Modified;
+                    await _context.SaveChangesAsync();
+
+                    await _context.Entry(review).ReloadAsync();
+                    Log.Information($"📊 [БД] После ПОВТОРНОЙ попытки: Comment='{review.Comment}'");
+                }
             }
-            catch (DbUpdateConcurrencyException)
+            catch (DbUpdateConcurrencyException ex)
             {
+                Log.Error(ex, "Ошибка конкурентности при обновлении отзыва {ReviewId}", id);
                 if (!ReviewExists(id))
                 {
                     return NotFound();
@@ -299,8 +325,24 @@ namespace Backend.Controllers
                     throw;
                 }
             }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Ошибка при сохранении отзыва {ReviewId}", id);
+                return StatusCode(500, new { message = $"Ошибка при сохранении: {ex.Message}" });
+            }
 
-            return NoContent();
+            return Ok(new { 
+                success = true, 
+                message = "Отзыв успешно обновлен",
+                review = new
+                {
+                    id = review.Id,
+                    comment = review.Comment,
+                    rating = review.Rating,
+                    isApproved = review.IsApproved,
+                    updatedAt = DateTime.UtcNow
+                }
+            });
         }
 
         [HttpDelete("{id}")]
